@@ -1,0 +1,6 @@
+Flask
+HTML
+CSS
+JavaScript
+Bootstrap 5
+Postgres on Superbase
