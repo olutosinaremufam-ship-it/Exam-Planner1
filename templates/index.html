@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f5ef">
+  <title>Studywell | Exam planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg app-nav">
+    <div class="container app-container">
+      <a class="navbar-brand brand" href="{{ url_for('index') }}"><span class="brand-mark">S</span> studywell</a>
+      <span class="nav-caption">YOUR EXAM SPACE</span>
+    </div>
+  </nav>
+
+  <main class="container app-container pb-5">
+    <section class="welcome d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-4">
+      <div>
+        <p class="eyebrow">{{ today.strftime('%A, %B %-d') }}</p>
+        <h1>Your exam season,<br><span>organized.</span></h1>
+        <p class="welcome-copy">Keep every subject and revision session in one calm place.</p>
+      </div>
+      <div class="welcome-note">
+        <span class="note-dot"></span>
+        <span>{% if next_exam %}Next exam: <strong>{{ next_exam.name }}</strong> · {{ next_exam.exam_date.strftime('%b %-d') }}{% else %}Add your first subject to get started{% endif %}</span>
+      </div>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack" aria-live="polite">
+          {% for category, message in messages %}
+            <div class="alert {{ 'alert-success' if category == 'success' else 'alert-danger' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="stats-row" aria-label="Study overview">
+      <div class="stat-block"><span class="stat-label">SUBJECTS</span><strong>{{ subjects|length }}</strong><span class="stat-detail">on your exam list</span></div>
+      <div class="stat-block"><span class="stat-label">TO REVISE</span><strong>{{ pending_count }}</strong><span class="stat-detail">sessions still to do</span></div>
+      <div class="stat-block"><span class="stat-label">COMPLETED</span><strong>{{ completed_count }}</strong><span class="stat-detail">sessions checked off</span></div>
+    </section>
+
+    <div class="row g-4 dashboard-grid">
+      <div class="col-lg-5">
+        <section class="section-panel h-100" aria-labelledby="subjects-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">BUILD YOUR LIST</p><h2 id="subjects-heading">Your subjects</h2></div>
+            <span class="count-pill">{{ subjects|length }}</span>
+          </div>
+          <form class="entry-form" action="{{ url_for('add_subject') }}" method="post">
+            <label class="form-label" for="subject-name">Subject name</label>
+            <input class="form-control" id="subject-name" name="name" maxlength="80" placeholder="e.g. Biology" required>
+            <div class="row g-3 mt-0">
+              <div class="col-7">
+                <label class="form-label" for="exam-date">Exam date</label>
+                <input class="form-control" type="date" id="exam-date" name="exam_date" min="{{ today.isoformat() }}" required>
+              </div>
+              <div class="col-5">
+                <label class="form-label" for="difficulty">Difficulty</label>
+                <select class="form-select" id="difficulty" name="difficulty">
+                  <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-ink w-100 mt-3" type="submit">Add subject <span aria-hidden="true">+</span></button>
+          </form>
+
+          <div class="subject-list">
+            {% for subject in subjects %}
+              <article class="subject-item">
+                <div class="subject-main">
+                  <div class="subject-title-line"><h3>{{ subject.name }}</h3><span class="difficulty difficulty-{{ subject.difficulty }}">{{ subject.difficulty }}</span></div>
+                  <p>Exam {{ subject.exam_date.strftime('%b %-d, %Y') }}{% if subject.exam_date >= today %}<span class="subject-days"> · {{ (subject.exam_date - today).days }} days left</span>{% else %}<span class="subject-days"> · past</span>{% endif %}</p>
+                </div>
+                <form action="{{ url_for('delete_subject', subject_id=subject.id) }}" method="post" data-confirm="Remove this subject and all its revision tasks?">
+                  <button class="icon-button" type="submit" aria-label="Remove {{ subject.name }}" title="Remove subject">×</button>
+                </form>
+              </article>
+            {% else %}
+              <div class="empty-state"><span class="empty-mark">01</span><p>Your subjects will show up here.<br>Start with the next exam on your calendar.</p></div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <div class="col-lg-7">
+        <section class="section-panel task-panel" aria-labelledby="tasks-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">SMALL SESSIONS ADD UP</p><h2 id="tasks-heading">Revision plan</h2></div>
+            <span class="plan-caption">{{ pending_count }} to do</span>
+          </div>
+
+          {% if subjects %}
+            <form class="task-entry" action="{{ url_for('add_task') }}" method="post">
+              <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                  <label class="form-label" for="task-title">What will you revise?</label>
+                  <input class="form-control" id="task-title" name="title" maxlength="120" placeholder="e.g. Cell structure" required>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label" for="task-subject">Subject</label>
+                  <select class="form-select" id="task-subject" name="subject_id" required>
+                    {% for subject in subjects %}<option value="{{ subject.id }}">{{ subject.name }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label" for="task-date">Study day</label>
+                  <input class="form-control" type="date" id="task-date" name="study_date" value="{{ today.isoformat() }}" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label" for="task-minutes">Minutes</label>
+                  <input class="form-control" type="number" id="task-minutes" name="minutes" min="10" max="300" step="5" value="30" required>
+                </div>
+                <div class="col-6 col-md-12 d-grid d-md-flex justify-content-md-end">
+                  <button class="btn btn-coral" type="submit">Plan session <span aria-hidden="true">+</span></button>
+                </div>
+              </div>
+            </form>
+          {% else %}
+            <div class="task-prerequisite">Add a subject first, then you can schedule revision sessions for it.</div>
+          {% endif %}
+
+          <div class="task-list">
+            {% for task in tasks %}
+              <article class="task-item {{ 'task-done' if task.completed else '' }}">
+                <form action="{{ url_for('toggle_task', task_id=task.id) }}" method="post" class="task-check-form">
+                  <button class="task-check" type="submit" aria-label="{{ 'Mark incomplete' if task.completed else 'Mark complete' }}: {{ task.title }}" aria-pressed="{{ 'true' if task.completed else 'false' }}">{% if task.completed %}✓{% endif %}</button>
+                </form>
+                <div class="task-copy">
+                  <h3>{{ task.title }}</h3>
+                  <p><span>{{ task.subject.name }}</span><span class="task-separator">·</span>{{ task.study_date.strftime('%b %-d') }}<span class="task-separator">·</span>{{ task.minutes }} min</p>
+                </div>
+                <form action="{{ url_for('delete_task', task_id=task.id) }}" method="post" class="task-delete-form">
+                  <button class="icon-button" type="submit" aria-label="Remove {{ task.title }}" title="Remove task">×</button>
+                </form>
+              </article>
+            {% else %}
+              <div class="empty-state task-empty"><span class="empty-mark">02</span><p>No revision sessions yet.<br>Add a topic and choose when you’ll work on it.</p></div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+    </div>
+    <footer class="page-footer"><span>STUDY WELL, ONE SESSION AT A TIME.</span><span>Made for your next exam.</span></footer>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

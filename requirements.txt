@@ -1,6 +1,4 @@
-Flask
-HTML
-CSS
-JavaScript
-Bootstrap 5
-Postgres on Superbase
+Flask>=3.0,<4.0
+Flask-SQLAlchemy>=3.1,<4.0
+python-dotenv>=1.0,<2.0
+psycopg[binary]>=3.2,<4.0
