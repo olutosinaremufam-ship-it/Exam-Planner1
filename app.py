@@ -54,7 +54,7 @@ def create_app(test_config=None):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
     app.config.from_mapping(
-        SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-this-secret"),
+        SECRET_KEY=os.getenv("SECRET_KEY") or os.getenv("SESSION_SECRET", "dev-only-change-this-secret"),
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
@@ -200,4 +200,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=os.getenv("FLASK_DEBUG", "true").lower() == "true")
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
+    )
